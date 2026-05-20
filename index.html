@@ -312,103 +312,63 @@
     }
   }
 
-  // 3. Render list siswa pada Display 1 berdasarkan Filter komponen (VERSI PERBAIKAN ERROR)
-  function filterStudents() {
-    const nameQuery = document.getElementById('f-name').value.toLowerCase();
-    const genderQuery = document.getElementById('f-gender').value;
-    const groupQuery = document.getElementById('f-group').value;
-    const dateQuery = document.getElementById('f-date').value;
+function filterStudents() {
+  const nameQuery = document.getElementById('f-name').value.toLowerCase();
+  const genderQuery = document.getElementById('f-gender').value;
+  const groupQuery = document.getElementById('f-group').value;
+  const dateQuery = document.getElementById('f-date').value;
 
-    const filtered = localState.students.filter(s => {
-      // PROTEKSI: Jika kolom NAMA kosong atau tidak ada, lewati data ini agar tidak error
-      if (!s.NAMA) return false; 
+  const filtered = localState.students.filter(s => {
 
-      const mName = s.NAMA.toLowerCase().includes(nameQuery);
-      const mGender = genderQuery === "" || s["JENIS KELAMIN"] === genderQuery;
-      const mGroup = groupQuery === "" || s.KELOMPOK === groupQuery;
-      return mName && mGender && mGroup;
-    });
+    // cegah error jika nama kosong
+    if (!s.NAMA) return false;
 
-    const tbody = document.getElementById('student-list-tbody');
-    tbody.innerHTML = "";
+    const mName = s.NAMA.toLowerCase().includes(nameQuery);
+    const mGender = genderQuery === "" || s["JENIS KELAMIN"] === genderQuery;
+    const mGroup = groupQuery === "" || s.KELOMPOK === groupQuery;
 
-    if(filtered.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Siswa tidak ditemukan.</td></tr>`;
-      return;
-    }
+    return mName && mGender && mGroup;
+  });
 
-    filtered.forEach(s => {
-      // Cari status kehadiran lokal saat ini pada tanggal terpilih
-      const match = localState.attendance.find(a => a.NAMA === s.NAMA && a.TANGGAL === dateQuery);
-      const currentStatus = match ? match.KEHADIRAN : null;
+  const tbody = document.getElementById('student-list-tbody');
+  tbody.innerHTML = "";
 
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="fw-semibold">${s.NAMA}</td>
-        <td><span class="badge bg-light text-dark">${s["JENIS KELAMIN"] || '-'}</span></td>
-        <td><small class="text-muted">${s.KELOMPOK || '-'}</small></td>
-        <td class="text-center">
-          <div class="btn-group btn-group-sm" role="group">
-            <button class="btn btn-presence ${currentStatus === 'Hadir' ? 'btn-success' : 'btn-outline-success'}" onclick="submitAbsen('${s.NAMA}', '${s["JENIS KELAMIN"] || ''}', '${s.KELOMPOK || ''}', 'Hadir')">Hadir</button>
-            <button class="btn btn-presence ${currentStatus === 'Izin' ? 'btn-warning text-dark' : 'btn-outline-warning text-dark'}" onclick="submitAbsen('${s.NAMA}', '${s["JENIS KELAMIN"] || ''}', '${s.KELOMPOK || ''}', 'Izin')">Izin</button>
-            <button class="btn btn-presence ${currentStatus === 'Sakit' ? 'btn-info text-white' : 'btn-outline-info'}" onclick="submitAbsen('${s.NAMA}', '${s["JENIS KELAMIN"] || ''}', '${s.KELOMPOK || ''}', 'Sakit')">Sakit</button>
-            <button class="btn btn-presence ${currentStatus === 'Alfa' ? 'btn-danger' : 'btn-outline-danger'}" onclick="submitAbsen('${s.NAMA}', '${s["JENIS KELAMIN"] || ''}', '${s.KELOMPOK || ''}', 'Alfa')">Alfa</button>
-          </div>
+  if(filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-muted">
+          Siswa tidak ditemukan.
         </td>
-        <td class="text-end">
-          <button class="btn btn-link btn-sm text-decoration-none p-0 me-1" onclick="openStudentModal(true, '${s.NAMA}', '${s["JENIS KELAMIN"] || ''}', '${s.KELOMPOK || ''}')">Edit</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
+      </tr>`;
+    return;
   }
-  // 3. Render list siswa pada Display 1 berdasarkan Filter komponen
-  function filterStudents() {
-    const nameQuery = document.getElementById('f-name').value.toLowerCase();
-    const genderQuery = document.getElementById('f-gender').value;
-    const groupQuery = document.getElementById('f-group').value;
-    const dateQuery = document.getElementById('f-date').value;
 
-    const filtered = localState.students.filter(s => {
-      const mName = s.NAMA.toLowerCase().includes(nameQuery);
-      const mGender = genderQuery === "" || s["JENIS KELAMIN"] === genderQuery;
-      const mGroup = groupQuery === "" || s.KELOMPOK === groupQuery;
-      return mName && mGender && mGroup;
-    });
+  filtered.forEach(s => {
+    const match = localState.attendance.find(
+      a => a.NAMA === s.NAMA && a.TANGGAL === dateQuery
+    );
 
-    const tbody = document.getElementById('student-list-tbody');
-    tbody.innerHTML = "";
+    const currentStatus = match ? match.KEHADIRAN : null;
 
-    if(filtered.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Siswa tidak ditemukan.</td></tr>`;
-      return;
-    }
+    const tr = document.createElement('tr');
 
-    filtered.forEach(s => {
-      // Cari status kehadiran lokal saat ini pada tanggal terpilih
-      const match = localState.attendance.find(a => a.NAMA === s.NAMA && a.TANGGAL === dateQuery);
-      const currentStatus = match ? match.KEHADIRAN : null;
+    tr.innerHTML = `
+      <td class="fw-semibold">${s.NAMA}</td>
+      <td>
+        <span class="badge bg-light text-dark">
+          ${s["JENIS KELAMIN"] || '-'}
+        </span>
+      </td>
+      <td>
+        <small class="text-muted">
+          ${s.KELOMPOK || '-'}
+        </small>
+      </td>
+    `;
 
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="fw-semibold">${s.NAMA}</td>
-        <td><span class="badge bg-light text-dark">${s["JENIS KELAMIN"]}</span></td>
-        <td><small class="text-muted">${s.KELOMPOK}</small></td>
-        <td class="text-center">
-          <div class="btn-group btn-group-sm" role="group">
-            <button class="btn btn-presence ${currentStatus === 'Hadir' ? 'btn-success' : 'btn-outline-success'}" onclick="submitAbsen('${s.NAMA}', '${s["JENIS KELAMIN"]}', '${s.KELOMPOK}', 'Hadir')">Hadir</button>
-            <button class="btn btn-presence ${currentStatus === 'Izin' ? 'btn-warning text-dark' : 'btn-outline-warning text-dark'}" onclick="submitAbsen('${s.NAMA}', '${s["JENIS KELAMIN"]}', '${s.KELOMPOK}', 'Izin')">Izin</button>
-            <button class="btn btn-presence ${currentStatus === 'Sakit' ? 'btn-info text-white' : 'btn-outline-info'}" onclick="submitAbsen('${s.NAMA}', '${s["JENIS KELAMIN"]}', '${s.KELOMPOK}', 'Sakit')">Sakit</button>
-            <button class="btn btn-presence ${currentStatus === 'Alfa' ? 'btn-danger' : 'btn-outline-danger'}" onclick="submitAbsen('${s.NAMA}', '${s["JENIS KELAMIN"]}', '${s.KELOMPOK}', 'Alfa')">Alfa</button>
-          </div>
-        </td>
-        <td class="text-end">
-          <button class="btn btn-link btn-sm text-decoration-none p-0 me-1" onclick="openStudentModal(true, '${s.NAMA}', '${s["JENIS KELAMIN"]}', '${s.KELOMPOK}')">Edit</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
+    tbody.appendChild(tr);
+  });
+}
 
   // 4. Submit Absen Otomatis (POST) dengan Validasi Ganda (Poin 4 & 5)
   async function submitAbsen(nama, gender, kelompok, status) {
