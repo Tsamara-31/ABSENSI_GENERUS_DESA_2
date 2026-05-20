@@ -85,7 +85,7 @@
             <input type="date" id="f-date" class="form-control form-control-sm" onchange="filterStudents()">
           </div>
           <div class="col-md-2 col-sm-6">
-            <select id="f-pengajian" class="form-select form-select-sm" id="global-pengajian">
+           <select id="f-pengajian" class="form-select form-select-sm">
               <option value="Daerah">Daerah</option>
               <option value="Desa">Desa</option>
             </select>
@@ -295,23 +295,30 @@
   }
 
   // 2. Fetch Data Awal (GET)
-  async function fetchAllData() {
-    try {
-      const response = await fetch(SCRIPT_URL);
-      if (!response.ok) throw new Error("Gagal mengambil respon dari server.");
-      const json = await response.json();
-      if(json.status === "success") {
-        localState.students = json.data.students;
-        localState.attendance = json.data.attendance;
-        filterStudents();
-      } else {
-        alert("Gagal memuat: " + json.message);
-      }
-    } catch (err) {
-      alert("Koneksi gagal/Error: " + err.message);
-    }
-  }
+ async function fetchAllData() {
 
+  try {
+
+    console.log("Mulai fetch...");
+
+    const response = await fetch(SCRIPT_URL);
+
+    console.log("Status:", response.status);
+
+    const text = await response.text();
+
+    console.log("Isi response:");
+    console.log(text);
+
+  } catch (err) {
+
+    console.error("ERROR FETCH:");
+    console.error(err);
+
+    alert(err.message);
+  }
+}
+// 3.
 function filterStudents() {
   const nameQuery = document.getElementById('f-name').value.toLowerCase();
   const genderQuery = document.getElementById('f-gender').value;
@@ -369,7 +376,190 @@ function filterStudents() {
     tbody.appendChild(tr);
   });
 }
+function filterStudents() {
 
+  const nameQuery =
+    document.getElementById('f-name').value.toLowerCase();
+
+  const genderQuery =
+    document.getElementById('f-gender').value;
+
+  const groupQuery =
+    document.getElementById('f-group').value;
+
+  const dateQuery =
+    document.getElementById('f-date').value;
+
+  // pastikan students array
+  const students = Array.isArray(localState.students)
+    ? localState.students
+    : [];
+
+  const filtered = students.filter(s => {
+
+    // proteksi data kosong
+    if (!s) return false;
+
+    const nama = (s.NAMA || "").toString();
+    const gender = (s["JENIS KELAMIN"] || "").toString();
+    const kelompok = (s.KELOMPOK || "").toString();
+
+    const mName =
+      nama.toLowerCase().includes(nameQuery);
+
+    const mGender =
+      genderQuery === "" || gender === genderQuery;
+
+    const mGroup =
+      groupQuery === "" || kelompok === groupQuery;
+
+    return mName && mGender && mGroup;
+  });
+
+  const tbody =
+    document.getElementById('student-list-tbody');
+
+  tbody.innerHTML = "";
+
+  if(filtered.length === 0) {
+
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5"
+            class="text-center text-muted">
+          Siswa tidak ditemukan
+        </td>
+      </tr>
+    `;
+
+    return;
+  }
+
+  filtered.forEach(s => {
+
+    const match = localState.attendance.find(
+      a =>
+        a.NAMA === s.NAMA &&
+        a.TANGGAL === dateQuery
+    );
+
+    const currentStatus =
+      match ? match.KEHADIRAN : null;
+
+    const tr = document.createElement('tr');
+
+    tr.innerHTML = `
+      <td class="fw-semibold">${s.NAMA || '-'}</td>
+
+      <td>
+        <span class="badge bg-light text-dark">
+          ${s["JENIS KELAMIN"] || '-'}
+        </span>
+      </td>
+
+      <td>
+        <small class="text-muted">
+          ${s.KELOMPOK || '-'}
+        </small>
+      </td>
+
+      <td class="text-center">
+
+        <div class="btn-group btn-group-sm">
+
+          <button
+            class="btn btn-presence
+            ${currentStatus === 'Hadir'
+              ? 'btn-success'
+              : 'btn-outline-success'}"
+
+            onclick="submitAbsen(
+              '${s.NAMA}',
+              '${s["JENIS KELAMIN"] || ""}',
+              '${s.KELOMPOK || ""}',
+              'Hadir'
+            )">
+
+            Hadir
+
+          </button>
+
+          <button
+            class="btn btn-presence
+            ${currentStatus === 'Izin'
+              ? 'btn-warning text-dark'
+              : 'btn-outline-warning text-dark'}"
+
+            onclick="submitAbsen(
+              '${s.NAMA}',
+              '${s["JENIS KELAMIN"] || ""}',
+              '${s.KELOMPOK || ""}',
+              'Izin'
+            )">
+
+            Izin
+
+          </button>
+
+          <button
+            class="btn btn-presence
+            ${currentStatus === 'Sakit'
+              ? 'btn-info text-white'
+              : 'btn-outline-info'}"
+
+            onclick="submitAbsen(
+              '${s.NAMA}',
+              '${s["JENIS KELAMIN"] || ""}',
+              '${s.KELOMPOK || ""}',
+              'Sakit'
+            )">
+
+            Sakit
+
+          </button>
+
+          <button
+            class="btn btn-presence
+            ${currentStatus === 'Alfa'
+              ? 'btn-danger'
+              : 'btn-outline-danger'}"
+
+            onclick="submitAbsen(
+              '${s.NAMA}',
+              '${s["JENIS KELAMIN"] || ""}',
+              '${s.KELOMPOK || ""}',
+              'Alfa'
+            )">
+
+            Alfa
+
+          </button>
+
+        </div>
+      </td>
+
+      <td class="text-end">
+
+        <button
+          class="btn btn-link btn-sm"
+
+          onclick="openStudentModal(
+            true,
+            '${s.NAMA}',
+            '${s["JENIS KELAMIN"] || ""}',
+            '${s.KELOMPOK || ""}'
+          )">
+
+          Edit
+
+        </button>
+
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
   // 4. Submit Absen Otomatis (POST) dengan Validasi Ganda (Poin 4 & 5)
   async function submitAbsen(nama, gender, kelompok, status) {
     const targetDate = document.getElementById('f-date').value;
