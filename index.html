@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Absensi Siswa</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background-color: #f8f9fa; font-family: sans-serif; }
+    .card { border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .btn-presence { width: 65px; font-size: 0.85rem; }
+    .nav-tabs .nav-link { font-weight: 600; color: #495057; }
+    .nav-tabs .nav-link.active { background-color: #fff; border-bottom-color: transparent; color: #0d6efd; }
+    .trend-indicator { font-size: 1.1rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div class="container py-4">
+  <!-- Realtime Header Component -->
+  <div class="card p-3 mb-4 bg-primary text-white d-flex flex-row justify-content-between align-items-center flex-wrap">
+    <div>
+      <h4 class="mb-0 fw-bold">E-Absensi Siswa</h4>
+      <small id="realtime-date">Rabu, 20 Mei 2026</small>
+    </div>
+    <div class="text-end">
+      <h2 class="mb-0 fw-bold" id="realtime-clock">00:00:00</h2>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <ul class="nav nav-tabs mb-4" id="absensiTab" role="tablist">
+    <li class="nav-item">
+      <button class="nav-link active" id="input-tab" data-bs-toggle="tab" data-bs-target="#input-panel" type="button">DISPLAY 1 - Input Absensi</button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" id="rekap-tab" data-bs-toggle="tab" data-bs-target="#rekap-panel" type="button" onclick="renderRekap()">DISPLAY 2 - Rekap Absensi</button>
+    </li>
+  </ul>
+
+  <!-- Tab Contents -->
+  <div class="tab-content" id="absensiTabContent">
+    
+    <!-- DISPLAY 1: INPUT ABSENSI -->
+    <div class="tab-pane fade show active" id="input-panel">
+      
+      <!-- Management & Actions -->
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <button class="btn btn-success btn-sm" onclick="openStudentModal(false)">+ Tambah Data Siswa</button>
+        <button class="btn btn-danger btn-sm" onclick="triggerRestart()">Restart Kehadiran Hari Ini</button>
+      </div>
+
+      <!-- Filter Pencarian Box -->
+      <div class="card p-3 mb-4 bg-white">
+        <h6 class="fw-bold mb-3">Filter Pencarian</h6>
+        <div class="row g-2">
+          <div class="col-md-3 col-sm-6">
+            <input type="text" id="f-name" class="form-control form-control-sm" placeholder="Cari nama siswa..." oninput="filterStudents()">
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <select id="f-gender" class="form-select form-select-sm" onchange="filterStudents()">
+              <option value="">Semua Gender</option>
+              <option value="Laki-laki">Laki-laki</option>
+              <option value="Perempuan">Perempuan</option>
+            </select>
+          </div>
+          <div class="col-md-3 col-sm-6">
+            <select id="f-group" class="form-select form-select-sm" onchange="filterStudents()">
+              <option value="">Semua Kelompok</option>
+              <option value="Mlakot 1 Utara">Mlakot 1 Utara</option>
+              <option value="Mlakot 1 Tengah">Mlakot 1 Tengah</option>
+              <option value="Mlakot 1 Barat">Mlakot 1 Barat</option>
+              <option value="Mlakot 2 Timur">Mlakot 2 Timur</option>
+              <option value="Mlakot 2 Barat">Mlakot 2 Barat</option>
+              <option value="Mlakot 2 Utara">Mlakot 2 Utara</option>
+              <option value="Mlateng 1">Mlateng 1</option>
+              <option value="Mlateng 2">Mlateng 2</option>
+              <option value="Kalangan Timur">Kalangan Timur</option>
+            </select>
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <input type="date" id="f-date" class="form-control form-control-sm" onchange="filterStudents()">
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <select id="f-pengajian" class="form-select form-select-sm" id="global-pengajian">
+              <option value="Daerah">Daerah</option>
+              <option value="Desa">Desa</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Student List Table -->
+      <div class="card p-3 bg-white">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Nama Siswa</th>
+                <th>Gender</th>
+                <th>Kelompok</th>
+                <th class="text-center" style="min-width: 290px;">Status Kehadiran</th>
+                <th class="text-end">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="student-list-tbody">
+              <tr>
+                <td colspan="5" class="text-center py-4 text-muted">Memuat data dari Google Sheets...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DISPLAY 2: REKAP ABSENSI -->
+    <div class="tab-pane fade" id="rekap-panel">
+      <!-- Filter Rekap -->
+      <div class="card p-3 mb-4 bg-white">
+        <h6 class="fw-bold mb-3">Filter Rekapan Data</h6>
+        <div class="row g-2">
+          <div class="col-md-2 col-sm-6">
+            <label class="form-label small mb-1">Tanggal Dari</label>
+            <input type="date" id="r-date-from" class="form-control form-control-sm" onchange="renderRekap()">
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <label class="form-label small mb-1">Tanggal Sampai</label>
+            <input type="date" id="r-date-to" class="form-control form-control-sm" onchange="renderRekap()">
+          </div>
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label small mb-1">Kelompok</label>
+            <select id="r-group" class="form-select form-select-sm" onchange="renderRekap()">
+              <option value="">Semua Kelompok</option>
+              <option value="Mlakot 1 Utara">Mlakot 1 Utara</option>
+              <option value="Mlakot 1 Tengah">Mlakot 1 Tengah</option>
+              <option value="Mlakot 1 Barat">Mlakot 1 Barat</option>
+              <option value="Mlakot 2 Timur">Mlakot 2 Timur</option>
+              <option value="Mlakot 2 Barat">Mlakot 2 Barat</option>
+              <option value="Mlakot 2 Utara">Mlakot 2 Utara</option>
+              <option value="Mlateng 1">Mlateng 1</option>
+              <option value="Mlateng 2">Mlateng 2</option>
+              <option value="Kalangan Timur">Kalangan Timur</option>
+            </select>
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <label class="form-label small mb-1">Gender</label>
+            <select id="r-gender" class="form-select form-select-sm" onchange="renderRekap()">
+              <option value="">Semua</option>
+              <option value="Laki-laki">Laki-laki</option>
+              <option value="Perempuan">Perempuan</option>
+            </select>
+          </div>
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label small mb-1">Pengajian</label>
+            <select id="r-pengajian" class="form-select form-select-sm" onchange="renderRekap()">
+              <option value="">Semua Pengajian</option>
+              <option value="Daerah">Daerah</option>
+              <option value="Desa">Desa</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Statistik Angka Kehadiran -->
+      <div class="row g-3 mb-4 text-center">
+        <div class="col-md-2-4 col-sm-6 col-12">
+          <div class="card p-3 bg-secondary text-white">
+            <small>Total Seluruh</small>
+            <h3 class="fw-bold mb-0" id="stat-total">0</h3>
+          </div>
+        </div>
+        <div class="col-md-2-4 col-sm-6 col-12">
+          <div class="card p-3 bg-success text-white">
+            <small>Total Hadir</small>
+            <h3 class="fw-bold mb-0" id="stat-hadir">0</h3>
+          </div>
+        </div>
+        <div class="col-md-2-4 col-sm-6 col-12">
+          <div class="card p-3 bg-warning text-dark">
+            <small>Total Izin</small>
+            <h3 class="fw-bold mb-0" id="stat-izin">0</h3>
+          </div>
+        </div>
+        <div class="col-md-2-4 col-sm-6 col-12">
+          <div class="card p-3 bg-info text-white">
+            <small>Total Sakit</small>
+            <h3 class="fw-bold mb-0" id="stat-sakit">0</h3>
+          </div>
+        </div>
+        <div class="col-md-2-4 col-sm-6 col-12">
+          <div class="card p-3 bg-danger text-white">
+            <small>Total Alfa</small>
+            <h3 class="fw-bold mb-0" id="stat-alfa">0</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visual Analitik Tren & Chart -->
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="card p-3 bg-white h-100">
+            <h6 class="fw-bold mb-3">Grafik Kolom: Kehadiran Per Kelompok</h6>
+            <canvas id="chartBarKelompok"></canvas>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card p-3 bg-white h-100">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="fw-bold mb-0">Grafik Analitik: Tren Garis</h6>
+              <div id="trend-box" class="trend-indicator text-muted">-</div>
+            </div>
+            <canvas id="chartLineTren"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- STUDENT MODAL (TAMBAH / EDIT) -->
+<div class="modal fade" id="studentModal" data-bs-backdrop="static" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-title">Manajemen Siswa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="m-old-name">
+        <div class="mb-3">
+          <label class="form-label">Nama Siswa</label>
+          <input type="text" id="m-name" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Jenis Kelamin</label>
+          <select id="m-gender" class="form-select">
+            <option value="Laki-laki">Laki-laki</option>
+            <option value="Perempuan">Perempuan</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Kelompok</label>
+          <select id="m-group" class="form-select">
+            <option value="Mlakot 1 Utara">Mlakot 1 Utara</option>
+            <option value="Mlakot 1 Tengah">Mlakot 1 Tengah</option>
+            <option value="Mlakot 1 Barat">Mlakot 1 Barat</option>
+            <option value="Mlakot 2 Timur">Mlakot 2 Timur</option>
+            <option value="Mlakot 2 Barat">Mlakot 2 Barat</option>
+            <option value="Mlakot 2 Utara">Mlakot 2 Utara</option>
+            <option value="Mlateng 1">Mlateng 1</option>
+            <option value="Mlateng 2">Mlateng 2</option>
+            <option value="Kalangan Timur">Kalangan Timur</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn id-btn-delete btn-danger me-auto" onclick="deleteStudent()">Hapus Siswa</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn btn-primary" onclick="saveStudent()">Simpan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap 5 JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // SILAHKAN MASUKKAN URL DEPLOY APPS SCRIPT ANDA DI SINI
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTNWT08aD-g144vntXv-RCQna9__4YVrsZilTLZRVN8mxSXpFN_-wp_AUCzaeru8cq1g/exec";
+
+  let localState = { students: [], attendance: [] };
+  let barChart = null;
+  let lineChart = null;
+
+  // 1. Inisialisasi Jam & Sistem Tanggal Realtime
+  function startRealtimeClock() {
+    setInterval(() => {
+      const now = new Date();
+      document.getElementById('realtime-clock').innerText = now.toLocaleTimeString('id-ID');
+    }, 1000);
+    
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('realtime-date').innerText = new Date().toLocaleDateString('id-ID', options);
+    
+    // Set default value date filter ke hari ini
+    const todayStr = new Date().toISOString().split('T')[0];
+    document.getElementById('f-date').value = todayStr;
+    document.getElementById('r-date-from').value = todayStr;
+    document.getElementById('r-date-to').value = todayStr;
+  }
+
+  // 2. Fetch Data Awal (GET)
+  async function fetchAllData() {
+    try {
+      const response = await fetch(SCRIPT_URL);
+      if (!response.ok) throw new Error("Gagal mengambil respon dari server.");
+      const json = await response.json();
+      if(json.status === "success") {
+        localState.students = json.data.students;
+        localState.attendance = json.data.attendance;
+        filterStudents();
+      } else {
+        alert("Gagal memuat: " + json.message);
+      }
+    } catch (err) {
+      alert("Koneksi gagal/Error: " + err.message);
+    }
+  }
+
+  // 3. Render list siswa pada Display 1 berdasarkan Filter komponen
+  function filterStudents() {
+    const nameQuery = document.getElementById('f-name').value.toLowerCase();
+    const genderQuery = document.getElementById('f-gender').value;
+    const groupQuery = document.getElementById('f-group').value;
+    const dateQuery = document.getElementById('f-date').value;
+
+    const filtered = localState.students.filter(s => {
+      const mName = s.NAMA.toLowerCase().includes(nameQuery);
+      const mGender = genderQuery === "" || s["JENIS KELAMIN"] === genderQuery;
+      const mGroup = groupQuery === "" || s.KELOMPOK === groupQuery;
+      return mName && mGender && mGroup;
+    });
+
+    const tbody = document.getElementById('student-list-tbody');
+    tbody.innerHTML = "";
+
+    if(filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Siswa tidak ditemukan.</td></tr>`;
+      return;
+    }
+
+    filtered.forEach(s => {
+      // Cari status kehadiran lokal saat ini pada tanggal terpilih
+      const match = localState.attendance.find(a => a.NAMA === s.NAMA && a.TANGGAL === dateQuery);
+      const currentStatus = match ? match.KEHADIRAN : null;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="fw-semibold">${s.NAMA}</td>
+        <td><span class="badge bg-light text-dark">${s["JENIS KELAMIN"]}</span></td>
+        <td><small class="text-muted">${s.KELOMPOK}</small></td>
+        <td class="text-center">
+          <div class="btn-group btn-group-sm" role="group">
+            <button class="btn btn-presence ${currentStatus === 'Hadir' ? 'btn-success' : 'btn-outline-success'}" onclick="submitAbsen('${s.NAMA}', '${s["JENIS KELAMIN"]}', '${s.KELOMPOK}', 'Hadir')">Hadir</button>
+            <button class="btn btn-presence ${currentStatus === 'Izin' ? 'btn-warning text-dark' : 'btn-outline-warning text-dark'}" onclick="submitAbsen('${s.NAMA}', '${s["JENIS KELAMIN"]}', '${s.KELOMPOK}', 'Izin')">Izin</button>
+            <button class="btn btn-presence ${currentStatus === 'Sakit' ? 'btn-info text-white' : 'btn-outline-info'}" onclick="submitAbsen('${s.NAMA}', '${s["JENIS KELAMIN"]}', '${s.KELOMPOK}', 'Sakit')">Sakit</button>
+            <button class="btn btn-presence ${currentStatus === 'Alfa' ? 'btn-danger' : 'btn-outline-danger'}" onclick="submitAbsen('${s.NAMA}', '${s["JENIS KELAMIN"]}', '${s.KELOMPOK}', 'Alfa')">Alfa</button>
+          </div>
+        </td>
+        <td class="text-end">
+          <button class="btn btn-link btn-sm text-decoration-none p-0 me-1" onclick="openStudentModal(true, '${s.NAMA}', '${s["JENIS KELAMIN"]}', '${s.KELOMPOK}')">Edit</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // 4. Submit Absen Otomatis (POST) dengan Validasi Ganda (Poin 4 & 5)
+  async function submitAbsen(nama, gender, kelompok, status) {
+    const targetDate = document.getElementById('f-date').value;
+    const pengajian = document.getElementById('f-pengajian').value;
+    
+    if(!targetDate) {
+      alert("Tentukan tanggal absen terlebih dahulu!");
+      return;
+    }
+
+    const checkExist = localState.attendance.find(a => a.NAMA === nama && a.TANGGAL === targetDate);
+    if (checkExist && checkExist.KEHADIRAN === status) {
+      alert("Data kehadiran sudah ada"); // Poin 4
+      return;
+    }
+
+    const timestamp = new Date().toLocaleString('id-ID');
+    const dataPayload = {
+      NAMA: nama,
+      "JENIS KELAMIN": gender,
+      KELOMPOK: kelompok,
+      PENGAJIAN: pengajian,
+      KEHADIRAN: status,
+      TANGGAL: targetDate,
+      WAKTU_DISIMPAN: timestamp
+    };
+
+    // Optimistic Update lokal biar UI responsif cepat berganti warna
+    if(checkExist) {
+      checkExist.KEHADIRAN = status; 
+      checkExist.PENGAJIAN = pengajian;
+    } else {
+      localState.attendance.push(dataPayload);
+    }
+    filterStudents();
+
+    try {
+      const response = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'cors',
+        body: JSON.stringify({ action: "saveAttendance", data: dataPayload })
+      });
+      const resJson = await response.json();
+      if(resJson.status !== "success") {
+        alert("Gagal menyimpan ke server, silakan reload.");
+      }
+    } catch(err) {
+      alert("Terjadi masalah jaringan server: " + err.toString());
+    }
+  }
+
+  // 5. Manajemen Data Siswa Modal & API Call
+  let bootstrapModal;
+  function openStudentModal(isEdit, name="", gender="Laki-laki", group="Mlakot 1 Utara") {
+    if(!bootstrapModal) bootstrapModal = new bootstrap.Modal(document.getElementById('studentModal'));
+    document.getElementById('m-old-name').value = isEdit ? name : "";
+    document.getElementById('m-name').value = name;
+    document.getElementById('m-gender').value = gender;
+    document.getElementById('m-group').value = group;
+    
+    const delBtn = document.querySelector('.id-btn-delete');
+    if(isEdit) delBtn.style.display = "block";
+    else delBtn.style.display = "none";
+    
+    bootstrapModal.show();
+  }
+
+  async function saveStudent() {
+    const oldName = document.getElementById('m-old-name').value;
+    const newName = document.getElementById('m-name').value.trim();
+    const gender = document.getElementById('m-gender').value;
+    const group = document.getElementById('m-group').value;
+
+    if(!newName) return alert("Nama tidak boleh kosong!");
+
+    const dataPayload = { oldName, newName, gender, group };
+    
+    try {
+      const response = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: "updateStudent", data: dataPayload })
+      });
+      const res = await response.json();
+      if(res.status === "success") {
+        bootstrapModal.hide();
+        fetchAllData();
+      } else {
+        alert(res.message);
+      }
+    } catch(e) { alert("Gagal memproses data siswa"); }
+  }
+
+  async function deleteStudent() {
+    const name = document.getElementById('m-old-name').value;
+    if(!confirm(`Hapus seluruh data siswa bernama ${name}?`)) return;
+    
+    try {
+      const response = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: "deleteStudent", name: name })
+      });
+      const res = await response.json();
+      if(res.status === "success") {
+        bootstrapModal.hide();
+        fetchAllData();
+      }
+    } catch(e) { alert("Gagal menghapus siswa"); }
+  }
+
+  // 6. Restart Kehadiran Hari ini (Poin 7)
+  async function triggerRestart() {
+    const targetDate = document.getElementById('f-date').value;
+    if(!confirm(`Yand Anda yakin ingin merestart/MENGHAPUS seluruh kehadiran pada tanggal ${targetDate}?`)) return;
+    
+    try {
+      const response = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: "restartAttendance", date: targetDate })
+      });
+      const res = await response.json();
+      if(res.status === "success") {
+        localState.attendance = localState.attendance.filter(a => a.TANGGAL !== targetDate);
+        filterStudents();
+        alert("Kehadiran hari ini berhasil di-restart.");
+      }
+    } catch(e) { alert("Gagal merestart absensi."); }
+  }
+
+  // 7. DISPLAY 2 — KODE REKAP & GRAFIK (Chart.js)
+  function renderRekap() {
+    const rFrom = document.getElementById('r-date-from').value;
+    const rTo = document.getElementById('r-date-to').value;
+    const rGroup = document.getElementById('r-group').value;
+    const rGen = document.getElementById('r-gender').value;
+    const rPeng = document.getElementById('r-pengajian').value;
+
+    // Filter baris data absensi terintegrasi
+    const filteredAtt = localState.attendance.filter(a => {
+      const matchFrom = rFrom ? a.TANGGAL >= rFrom : true;
+      const matchTo = rTo ? a.TANGGAL <= rTo : true;
+      const matchGrp = rGroup ? a.KELOMPOK === rGroup : true;
+      const matchGen = rGen ? a["JENIS KELAMIN"] === rGen : true;
+      const matchPeng = rPeng ? a.PENGAJIAN === rPeng : true;
+      return matchFrom && matchTo && matchGrp && matchGen && matchPeng;
+    });
+
+    // 7.2 Hitung Statistik Angka Kehadiran
+    let h = 0, i = 0, s = 0, a = 0;
+    filteredAtt.forEach(item => {
+      if(item.KEHADIRAN === "Hadir") h++;
+      else if(item.KEHADIRAN === "Izin") i++;
+      else if(item.KEHADIRAN === "Sakit") s++;
+      else if(item.KEHADIRAN === "Alfa") a++;
+    });
+    
+    document.getElementById('stat-total').innerText = filteredAtt.length;
+    document.getElementById('stat-hadir').innerText = h;
+    document.getElementById('stat-izin').innerText = i;
+    document.getElementById('stat-sakit').innerText = s;
+    document.getElementById('stat-alfa').innerText = a;
+
+    // 7.3 Pengolahan Data Grafik Kolom Kelompok
+    const kelompokList = ["Mlakot 1 Utara", "Mlakot 1 Tengah", "Mlakot 1 Barat", "Mlakot 2 Timur", "Mlakot 2 Barat", "Mlakot 2 Utara", "Mlateng 1", "Mlateng 2", "Kalangan Timur"];
+    const barData = kelompokList.map(klp => filteredAtt.filter(x => x.KELOMPOK === klp && x.KEHADIRAN === "Hadir").length);
+
+    if(barChart) barChart.destroy();
+    const ctxBar = document.getElementById('chartBarKelompok').getContext('2d');
+    barChart = new Chart(ctxBar, {
+      type: 'bar',
+      data: {
+        labels: kelompokList.map(k => k.split(" ")), // Split text label agar rapi di HP
+        datasets: [{ label: 'Jumlah Siswa Hadir', data: barData, backgroundColor: '#198754' }]
+      },
+      options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+
+    // 7.4 Pengolahan Data Grafik Tren Garis (Berdasarkan Tanggal Berurutan)
+    const tanggalUnik = [...new Set(filteredAtt.map(x => x.TANGGAL))].sort();
+    const lineData = tanggalUnik.map(tgl => filteredAtt.filter(x => x.TANGGAL === tgl && x.KEHADIRAN === "Hadir").length);
+
+    if(lineChart) lineChart.destroy();
+    const ctxLine = document.getElementById('chartLineTren').getContext('2d');
+    lineChart = new Chart(ctxLine, {
+      type: 'line',
+      data: {
+        labels: tanggalUnik,
+        datasets: [{ label: 'Hadir Per Hari', data: lineData, borderColor: '#0d6efd', tension: 0.2, fill: false }]
+      },
+      options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+
+    // Indikator Tren Naik / Turun
+    const indicatorEl = document.getElementById('trend-box');
+    if(lineData.length >= 2) {
+      const firstHalfAvg = lineData[0];
+      const lastVal = lineData[lineData.length - 1];
+      if (lastVal > firstHalfAvg) {
+        indicatorEl.innerHTML = "<span class='text-success'>▲ Tren Meningkat</span>";
+      } else if (lastVal < firstHalfAvg) {
+        indicatorEl.innerHTML = "<span class='text-danger'>▼ Tren Menurun</span>";
+      } else {
+        indicatorEl.innerHTML = "<span class='text-muted'>■ Tren Stabil</span>";
+      }
+    } else {
+      indicatorEl.innerHTML = "<span class='text-muted'>-</span>";
+    }
+  }
+
+  // Window bootstrap on load
+  window.onload = function() {
+    startRealtimeClock();
+    fetchAllData();
+  };
+</script>
+
+<style>
+  /* Custom responsive grid tambahan khusus untuk statistik 5 kolom */
+  @media (min-width: 576px) {
+    .col-md-2-4 { flex: 0 0 auto; width: 20%; }
+  }
+</style>
+</body>
+</html>
